@@ -1,0 +1,77 @@
+说明：keepalived实现nginx高可用，当其中一台nginx停掉之后，自动切换到另外一个；
+1、ip规划：nginx服务192.168.110.2和192.168.110.3，vip：192.168.110.10，通过客户端浏览器http://192.168.110.10可以访问到nginx
+2、分别在两台服务器上安装nginx和keepalived软件
+3、配置keepalived：/etc/keepalived/keepalived.conf
+
+! Configuration File for keepalived
+global_defs {
+}
+
+vrrp_script check_nginx {
+        script "/etc/keepalived/check_nginx.sh"
+        interval 2
+        weight 2
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    #state BACKUP  --从服务器配置
+    interface eth0
+    virtual_router_id 51
+    priority 101
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.110.10
+    }
+    track_script {
+      check_nginx
+    }
+}
+
+4、创建check_nginx文件/etc/keepalived/check_nginx.sh
+#!/bin/bash
+#version 0.0.1
+
+A=`ps -C nginx --no-header | wc -l`
+if [ $A -eq 0 ];then
+	/usr/local/nginx/sbin/nginx
+	sleep 3
+	if [ `ps -C nginx --no-header | wc -l ` -eq 0 ];then
+		killall keepalived
+	fi
+fi
+
+5、检查shell脚本
+#sh -x /etc/keepalived/check_nginx.sh
+
+6、在另外一个服务器上做同样的配置，
+只需要修改keepalived.conf的
+state BACKUP
+priority 100
+
+7、启动keepalived
+#keepalived 
+
+8、然后查看日志
+#cat /var/log/messages
+
+9、在主服务上查看vip是否生成
+#ip addr
+
+10、关闭主服务上的nginx，看是否能够自动重新启动
+#killall nginx
+
+11、关闭从服务器上的keepalived，看否是vip在从服务器上生成，并且通过vip还能访问网站
+#killall keepalived
+
+12、从服务查看是否生成vip
+#ip addr
+
+13、通过浏览器，看是否还能访问网站http://192.168.110.10
+
+
+

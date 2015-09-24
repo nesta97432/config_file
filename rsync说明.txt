@@ -1,0 +1,43 @@
+1、通过yum安装rsync
+2、创建目录/etc/rsyncd
+3、创建配置文件/etc/rsyncd/rsyncd.conf
+uid = root
+gid = root
+use chroot = no
+max connections = 10
+strict modes = yes
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsync.lock
+log file = /var/log/rsyncd.log
+[web]
+path = /var/www/
+comment = web file
+ignore errors
+read only = no
+write only = no
+hosts allow = 192.168.110.3
+hosts deny = *
+list = false
+auth users = test
+secrets file = /etc/rsyncd/rsyncd.secrets
+
+4、创建密码文件：/etc/rsyncd/rsyncd.secrets，并把权限改为600
+#echo > "test:12345" > /etc/rsyncd/rsyncd.secrets
+#chmod 600 /etc/rsyncd/rsyncd.secrets
+
+5、创建目录/var/www/
+#mkdir /var/www/
+6、启动rsync
+#rsync --daemon --config=/etc/rsyncd/rsyncd.conf
+
+
+7、在192.168.110.3机子上测试
+首先创建密码文件
+#touch /etc/rsyncd/rsyncd_client.password
+#echo "12345" > /etc/rsyncd/rsyncd_client.password
+修改权限
+#chmod 600 /etc/rsyncd/rsyncd_client.password
+测试把/root/upload/文件夹同步到服务器（192.168.110.2）的共享目录web
+#rsync -avr --delete --progress --password-file=/etc/rsyncd/rsyncd_client.password /root/upload/ test@192.168.110.2::web
+
+
