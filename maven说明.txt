@@ -1,0 +1,410 @@
+1、maven初步：
+1.1安装
+1.2本地仓库的安装设置，修改maven/config/settings.xml文件<localRepository>D:/worktool/repos</localRepository>
+1.3创建代码和测试代码
+	源代码应该放置到scr/main/java中
+	源代码的资源文件应该放置在src/main/resource文件夹中
+	测试代码应该放置到scr/test/java中
+	测试代码的资源文件应该放置到scr/test/resource文件夹中
+1.4运行mvn
+		mvn clean ：表示运行清理操作，（会默认把target文件中的数据清理）
+		mvn clean compile ：表示先运行清理之后运行编译，会见代码编译到target文件中
+		mvn clean test ：运行清理和测试
+		mvn clean package ：运行清理和打包
+		mvn clean install ：运行清理和安装，会将打好的包安装到本地仓库中，以便其他的项目可以调用。
+		mvn clean deploy ：运行清理和发布（发布到私服上面）
+1.5 maven的生成方式
+	由于maven有一些固定的生成模式，所以使用 mvn archetype:generate 可以自动完成这个骨架的建立，
+	使用Eclipse开发maven项目，默认使用STS和myEclipse都自带了maven的支持
+	如果是Eclipse需要安装m2eclipse插件
+
+2.依赖
+	2.1 依赖包的查询
+		2.1.1 所有的依赖都是通过坐标来进行存储的（GAV-->groupId/artifactId/version)
+		2.1.2 有些网站提供了依赖包的查询（mvnrepository.com , https://search.maven.org/）
+		2.1.3 通过<dependencies>设置依赖
+		<dependencies>
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>test</version>
+			</dependency>
+		</dependencies>
+		2.1.4 首先在本地仓库找，本地找不到，则到中央仓库找。
+		2.1.5 默认的中央仓库在maven的安装目录lib\maven-model-builder.jar中
+		2.1.6 如果运行编译时，报错找不到包，就到仓库中搜索；直到编译成功；
+	2.2 依赖传递，
+		2.2.1 依赖是会被传递的，A->C B->A ====>B-->C （这种依赖是基于compile范围进行传递）
+		2.2.2 如果scope没有写，则默认是compile范围，test范围是不会传递的。
+		2.2.3 对于依赖传递而言，只是基于compile作用域的传递
+		2.2.4 依赖的范围（scope）：
+			1.test范围指的是测试范围有效，在编译和打包时都不会使用这个依赖。
+			2.compile范围指的是编译范围有效，在编译和打包时都会将依赖存储过去。
+			3.provider依赖，在编译和测试的过程有效，最后生成war包时不会加入，诸如：servlet-api，因为servlet-api，comcat等web
+				服务器已经存在了，如果再打包会冲突。
+			4.runtime依赖在运行的时候依赖，在编译的时候不依赖。
+			5.import，system：
+		2.2.5 依赖传递冲突问题
+			1.a-b1.0,c-b1.2,d-a和c：这个时候，那个依赖先写就使用那个依赖
+			2.如果路径的长短不一致，就选择最小的路径
+			3.如果希望精确的控制依赖包，可以使用依赖的排除功能进行控制。
+				<dependency>
+					<groupId>org.hibernate</groupId>
+					<artifactId>core</artifactId>
+					<version>compile</version>
+					<exlusions>
+						<exlusion>
+							<groupId>log4j</groupId>
+							<artifactId>log4j></artifactId>
+						<exlusion>
+					</exlusions>
+				</dependency>
+		2.2.6 依赖聚合和继承user-aggregation
+			1.pom文件中：
+			
+			<groupId>org.my</groupId>
+			<artifactId>user-aggregation</artifactId>
+			<version>1.0-SNAPSHOT</version>
+			<packaging>pom</packaging>
+			
+			<modules>
+				<module>../user-core</module>
+				<module>../user-dao</module>
+				<module>../user-service</module>
+			</modules>
+		
+			2.聚合的项目和其他项目在同一级目录中需要使用../xx文件名来设置
+			3.继承
+				1.重新创建一个新的项目user-parent
+				2.在pom.xml文件中，把各个项目中相同的配置拷贝进来。
+				3.在其他项目中继承user-parent，在其他项目中的pom.xml中添加
+				<parent>
+					<groupId>org.konghao.user</groupId>
+					<artifactId>user-parent</artifactId>
+					<version>1.0-SNAPSHOT</version>
+					<relativePath>../user-parent/pom.xml</relativePath>
+				</parent>
+				
+				4.依赖的继承，
+				   首先需要在user-parent项目中的pom.xml文件中， 
+					<dependencyManagement>
+						<dependency></dependency>
+						<artifactId></artifactId>
+						<version></version>
+					</dependencyManagement>
+					然后在需要继承的项目的pom.xml中添加，注意只需要dependency和artifactId，version则不需要
+					
+					<dependencies>
+						<dependency></dependency>
+						<artifactId></artifactId>
+					</dependencies>
+				5.把聚合模块中的聚合模块拷贝到user-parent中，这样，user-parent模块即是聚合也是继承
+				<modules>
+					<module>../user-core</module>
+					<module>../user-dao</module>
+					<module>../user-service</module>
+				</modules>
+				这样就可以把user-aggregation项目删除。
+				对于依赖的继承而言，都需要通过dependencyManagement来完成管理，如果不管子类会全部继承，这种可能会导致一些模块存在不需要的依赖
+		2.7 版本号管理 
+			1.使用三个数字，（总版本号，分支版本号，小版本号-里程碑版本）
+			2.总版本号变动一般表示框架的变动
+			3.分支版本号：一般表示增加了一些功能
+			4.小版本号：在分支版本上进行bug的修复
+			5.里程碑：SHAPSHOT->alpha（内部测试版本）->beta（外部的公测版本）-release->GA（稳定版本）
+			6、一般总版本和分支版本是必须的；
+			例如：user0.0.1-SHNPSHOT-->user0.0.1-release-->user1.0.0SHAPSHOT-->user1.0.0--Release(和分支合并)
+								分支-->user0.1.0-SNAPSHOT-->user0.1.0--Release 与上面的1.0.0版本合并
+				
+3.仓库
+	3.1 本地仓库：开发者自己的仓库
+	3.2 中心仓库
+	3.3 私有仓库：局域网内部的仓库（公司内部共享，1、接收发布信息，2、私有仓库和中央仓库通信），用nexus来搭建私有仓库
+	3.4 nexus安装：
+		1.下载nexus，
+		2.将bin添加到Path环境变量 D:\worktool\nexus2.0\nexus-2.0\bin
+		3. nexus install 将nexus安装到windows的服务中
+		4.修改D:\worktool\nexus2.0\nexus-2.0\bin\jsw\conf\wrapper.conf
+		  wrapper.java.command=D:\worktool\jdk6\bin
+		5. 启动nexus，http://localhost:8081/nexus访问，用户名/密码：admin/admin123
+		6. host的仓库，内部项目的发布仓库。
+		7. proxy：从远程中央仓库中寻找数据的仓库，可以修改远程中央仓库的地址URL
+		8. group仓库：组仓库用来方便开发人员进行设置的仓库，这样开发人员只要在pom.xml文件中配置group的仓库就可以了；
+		9.在pom.xml中配置仓库，只要在user-parent配置：
+		<repositories>
+			<repository>
+				<id>central</id>
+				<name>central Repository</name>
+				<url>https://nexus.sourcerense.com/nexus/content/repositories/public/</url>
+				<layout>default</layout>
+				<snapshot>
+					<enabled>false</enabled>
+				</snapshot>
+			</repository>
+			<repository>
+				<id>nexus</id>
+				<name>nexus Repository</name>
+				<url>https://192.168.0.199:8080/nexus/content/groups/public/</url>
+				<releases>
+					<enabled>true</enabled>
+				</releases>
+				<snapshots>
+					<enabled>true</enabled>
+				</snapshots>
+			</repository>
+		</repositories>
+	3.5 镜像配置
+		1、在自己的settings.xml中配置：为上面pom.xml中的两个仓库做镜像：
+		<mirrors>
+			<mirror>
+				<id></id>
+				<mirrorOf>central,nexus</mirrorOf>--上面的两个仓库做镜像，可以直接使用*表示所有的仓库
+				<name>human readable name for this mirror</name>
+				<url>https://192.168.0.199:8080/nexus/content/groups/public/</url>
+			</mirror>
+		</mirrors>
+		
+	3.6 以上的设置，只针对项目内的可以使用，要让在电脑上的所有项目都可以使用私有仓库的，必须要在settings.xml中设置仓库（即把在pom.xml中配置的仓库移到settings中）	
+		1、在settings.xml中配置仓库：
+			<profiles>
+				<profile>
+					<id>central-repos</id>
+					<repositories>
+						<repository>
+							<id>central</id>
+							<name>central</name>
+							<url>https://central</url>--配置了镜像之后，这里的url就没有意义了
+							<releases>
+								<enabled>true</enabled>
+							</releases>
+							<snapshots>
+								<enabled>true</enabled>
+							</snapshots>
+						</repository>
+					</repositories>
+				</profile>
+			</profiles>
+		2、激活上面配置的profiles
+			<activeProfiles>
+				<activeProfile>central-repos</activeProfile> --profiles中定义的ID
+			</activeProfiles>
+		2、配置镜像：
+			<mirrors>
+				<mirror>
+					<id>nexus</id>
+					<mirrorOf>central,nexus</mirrorOf>--上面的两个仓库做镜像，可以直接使用*表示所有的仓库
+					<name>human readable name for this mirror</name>
+					<url>https://192.168.0.199:8080/nexus/content/groups/public/</url>
+				</mirror>
+			</mirrors>
+	3.7 设置项目的发布：
+		1、在项目的pom.xml中设定release仓库和snapshot仓库
+		<distributionManagement>
+			<!-- 发布快照版本的仓库地址-->
+			<snapshotRepository>
+				<id>user-snapshots</id>
+				<name>user Project snapshot</name>
+				<url>http://192.168.0.199:8080/nexus/content/repositories/snapshots/</url>
+			</snapshotRepository>
+			<!-- 发布release版本的仓库地址-->
+			<repository>
+				<id>user-release</id>
+				<name>user Project release</name>
+				<url>http://192.168.0.199:8080/nexus/content/repositories/releases/</url>
+			</repository>
+		</distributionManagement>
+		2、设置访问的权限：在settings.xml
+		   <!--快照版本的发布权限配置 -->
+			<server>
+				<id>user-snapshots</id> <!--在pom中配置的发布仓库id -->
+				<username>admin</username><!--在nexus中的能够用来发布的用户 -->
+				<password>admin123</password>
+			</server>
+			 <!--release版本的发布权限配置 -->
+			<server>
+				<id>user-releases</id> <!--在pom中配置的发布仓库id -->
+				<username>admin</username><!--在nexus中的能够用来发布的用户 -->
+				<password>admin123</password>
+			</server>
+	3.8 创建仓库（由于公司很大，有很多项目，不能把所有项目的release版本发布到release或者snapshot这个仓库中，只能把各个项目公用的模块放入到release或者snapshot仓库中）
+		1、创建仓库：在nexus中创建两个仓库release的和snapshot的：myProject1 release 和myProject snapshot 仓库；
+		2、配置权限：在nexus中privilege中创建权限
+		3、创建角色：在nexus的roles中
+		4、创建用户：在nexus中的users中
+		5、创建发布的仓库：在pom.xml文件修改发布仓库的配置
+		6、修改settings.xml的发布用户名
+		
+4.生命周期和插件	
+	4.1三套生命周期
+		1、clean：在进行真正的构建之前进行一些清理工作。
+			1) pre-clean 执行一些需要在clean之前完成的工作
+			2) clean 移除所有上次构建生成的文件
+			3) post-clean 执行一些需要在clean之后立刻完成的工作
+		2、compile：构建的核心部分，编译，测试，打包，部署等等。
+			validate
+			generate-sources
+			process-sources
+			generate-resources
+			process-resources     复制并处理资源文件，至目标目录，准备打包。
+			compile     编译项目的源代码。
+			process-classes
+			generate-test-sources 
+			process-test-sources 
+			generate-test-resources
+			process-test-resources     复制并处理资源文件，至目标测试目录。
+			test-compile     编译测试源代码。
+			process-test-classes
+			test     使用合适的单元测试框架运行测试。这些测试代码不会被打包或部署。
+			prepare-package
+			package     接受编译好的代码，打包成可发布的格式，如 JAR 。
+			pre-integration-test
+			integration-test
+			post-integration-test
+			verify
+			install     将包安装至本地仓库，以让其它项目依赖。
+			deploy     将最终的包复制到远程的仓库，以让其它开发人员与项目共享
+		3、site：生成项目报告，站点，发布站点。
+	
+	4.2 插件是maven的核心，所有的操作都是基于插件来完成的，
+	    为了让一个插件中可以实现众多类似的功能，maven为插件设定了目标，
+		一个插件中有可能多个目标
+	4.3 其实生命周期中的重要的每个阶段都是由插件的一个具体目标来执行；
+	
+	
+	
+	
+maven实战：许晓斌
+
+Ant也都是过程式的，开发者显式地指定每一个目标，以及完成该目标所需要执行的任务。
+针对每一个项目，开发者都需要重新编写这一过程，这里其实隐含着很大的重复。
+Maven是声明式的，项目构建过程和过程各个阶段所需的工作都由插件实现，并且大部分插件都是现成的，
+开发者只需要声明项目的基本元素，Maven就执行内置的、完整的构建过程。这在很大程度上消除了重复。
+Ant是没有依赖管理的，所以很长一段时间Ant用户都不得不手工管理依赖，这是一个令人头疼的问题。
+幸运的是，Ant用户现在可以借助Ivy管理依赖。而对于Maven用户来说，
+依赖管理是理所当然的，Maven不仅内置了依赖管理，更有一个可能拥有全世界最多Java开源软件包的中央仓库，
+Maven用户无须进行任何配置就可以直接享用。
+	
+	
+=========设置HTTP代理====================================
+
+<settings>
+…  
+<proxies>
+    <proxy>
+      <id>my-proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>218.14.227.197</host>
+      <port>3128</port>
+      <!--
+      <username>***</username>
+      <password>***</password>
+      <nonProxyHosts>repository.mycom.com|*.google.com</nonProxyHosts>
+      -->
+    </proxy>
+  </proxies>
+  …
+</settings>
+===================================================================================	
+一、Maven使用入门
+3.1 编写POM 
+3.2 编写主代码 
+3.3 编写测试代码 
+3.4 打包和运行 
+3.5 使用Archetype生成项目骨架 
+3.6 m2eclipse简单使用 
+
+3.1、编写POM：
+1、xml文件
+2、根元素下的第一个子元素modelVersion指定了当前POM模型的版本，对于Maven2及Maven 3来说，它只能是4.0.0
+3、Ant的build.xml一样，Maven项目的核心是pom.xml。POM（Project Object Model，项目对象模型）定义了项目的基本信息，用于描述项目如何构建，声明项目依赖，等等，
+3、这段代码中最重要的是groupId，artifactId和version三行。这三个元素定义了一个项目基本的坐标
+4、groupId定义了项目属于哪个组，
+5、artifactId定义了当前Maven项目在组中唯一的ID
+6、	version指定了项目当前的版本——1.0-SNAPSHOT。SNAPSHOT意为快照，说明该项目还处于开发中，是不稳定的版本。随着项目的发展，version会不断更新
+===================================================================================
+3.2 编写主代码：
+1、该Java类的包名是com.study.helloworld，这与我们之前在POM中定义的groupId和artifactId相吻合。一般来说，项目中Java类的包都应该基于项目的groupId和artifactId，
+这样更加清晰，更加符合逻辑，也方便搜索构件或者Java类；
+2、clean:clean、resources:resources，以及compiler:compile对应了一些Maven插件及插件目标，比如clean:clean是clean插件的clean目标，compiler:compile是compiler插件的compile目标；
+3、至此，Maven在没有任何额外的配置的情况下就执行了项目的清理和编译任务
+===================================================================================	
+3.3 编写测试代码
+1、JUnit是事实上的单元测试标准。要使用JUnit，我们首先需要为Hello World项目添加一个JUnit依赖，修改项目的POM如代码清单
+2、有这样一个疑问：Maven从哪里下载这个jar呢？他会到自动访问中央仓库（http://repo1.maven.org/maven2/）
+3、POM代码中还有一个值为test的元素scope，scope为依赖范围，若依赖范围为test则表示该依赖只对测试有效，换句话说，测试代码中的import JUnit代码是没有问题的，但是如果我们在主代码中用import JUnit代码，
+   就会造成编译错误。如果不声明依赖范围，那么默认值就是compile，表示该依赖对主代码和测试代码都有效
+4、单元测试包含三个步骤：一，准备测试类及数据；二，执行要测试的行为；三，检查结果
+5、运行 mvn clean test 
+6、Maven从中央仓库下载了junit-4.7.pom和junit-4.7.jar这两个文件到本地仓库
+7、Maven的核心插件之一compiler插件默认只支持编译Java 1.3，因此我们需要配置该插件使其支持Java 5
+<project>  
+…  
+  <build>  
+    <plugins>  
+       <plugin>  
+         <groupId>org.apache.maven.plugins</groupId>  
+         <artifactId>maven-compiler-plugin</artifactId>  
+         <configuration>  
+           <source>1.5</source>  
+           <target>1.5</target>  
+         </configuration>  
+       </plugin>  
+    </plugins>  
+  </build>  
+…  
+</project>      
+===================================================================================	
+	
+===================================================================================		
+配置仓库：
+<profiles>
+	<profile> 
+		<id>myprofile</id> 
+		<repositories> 
+			<repository> 
+				<id>central</id> 
+				<url>http://central</url> 
+				<releases> 
+					<enabled>true</enabled> 
+				</releases> 
+				<snapshots> 
+					<enabled>true</enabled> 
+				</snapshots> 
+			</repository> 
+		</repositories> 
+		<pluginRepositories> 
+			<pluginRepository> 
+				<id>central</id> 
+				<url>http://central</url> 
+				<releases> 
+					<enabled>true</enabled> 
+				</releases> 
+				<snapshots> 
+					<enabled>false</enabled> 
+				</snapshots> 
+			</pluginRepository> 
+		</pluginRepositories> 
+	</profile> 
+</profiles>
+
+激活：
+<activeProfiles> 
+	<activeProfile>myprofile</activeProfile> 
+</activeProfiles>
+
+镜像：
+<mirrors> 
+	<mirror> 
+		<id>nexus</id> 
+		<url>仓库组或者仓库路径</url> 
+		<mirrorOf>*</mirrorOf> 
+	</mirror> 
+</mirrors>
+===================================================================================		
+		
+		
+		
+		
+		
+		
